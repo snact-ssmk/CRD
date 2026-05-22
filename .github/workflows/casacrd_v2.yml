@@ -712,43 +712,62 @@ jobs:
           }
           
           Write-Host "📂 File ditemukan: $scriptPath"
-          Write-Host "🚀 Menjalankan script..."
           
-          # Jalankan script bat di background
-          Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$scriptPath`"" -WorkingDirectory "D:\setup-wdown" -WindowStyle Hidden
+          # Refresh PATH dari Machine environment
+          $machinePath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
+          $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
+          $env:PATH = "$machinePath;$userPath"
           
-          Write-Host "✅ Script RunAutoLoopBoth.bat berhasil dijalankan di background"
+          Write-Host "🔄 PATH di-refresh dari Machine environment"
           
-          # Tunggu sebentar untuk memastikan proses berjalan
-          Start-Sleep -Seconds 3
-          
-          Write-Host "ℹ️ Script berjalan sebagai background process"
-
-      - name: 🔄 Run AutoLoopBoth script
-        if: ${{ inputs.mode_restore == 'full' }}
-        run: |
-          Write-Host "=== Menjalankan RunAutoLoopBoth.bat ==="
-          
-          $scriptPath = "D:\setup-wdown\RunAutoLoopBoth.bat"
-          
-          # Cek apakah file bat ada
-          if (!(Test-Path $scriptPath)) {
-            Write-Host "❌ File script tidak ditemukan: $scriptPath"
-            exit 1
+          # Verifikasi tools tersedia
+          Write-Host "=== Verifikasi tools ==="
+          try {
+            $ffmpegVer = & ffmpeg -version 2>&1 | Select-Object -First 1
+            Write-Host "✅ ffmpeg: $ffmpegVer"
+          } catch {
+            Write-Host "⚠️ ffmpeg tidak terdeteksi"
           }
           
-          Write-Host "📂 File ditemukan: $scriptPath"
-          Write-Host "🚀 Menjalankan script..."
+          try {
+            $galleryVer = & gallery-dl --version 2>&1
+            Write-Host "✅ gallery-dl: $galleryVer"
+          } catch {
+            Write-Host "⚠️ gallery-dl tidak terdeteksi"
+          }
           
-          # Jalankan script bat di background
-          Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$scriptPath`"" -WorkingDirectory "D:\setup-wdown" -WindowStyle Hidden
+          try {
+            $rcloneVer = & rclone version 2>&1 | Select-Object -First 1
+            Write-Host "✅ rclone: $rcloneVer"
+          } catch {
+            Write-Host "⚠️ rclone tidak terdeteksi"
+          }
           
-          Write-Host "✅ Script RunAutoLoopBoth.bat berhasil dijalankan di background"
+          Write-Host "🚀 Menjalankan script dengan PATH yang sudah di-update..."
+          
+          # Jalankan script bat dengan environment PATH yang sudah di-refresh
+          $psi = New-Object System.Diagnostics.ProcessStartInfo
+          $psi.FileName = "cmd.exe"
+          $psi.Arguments = "/c `"$scriptPath`""
+          $psi.WorkingDirectory = "D:\setup-wdown"
+          $psi.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
+          $psi.UseShellExecute = $false
+          
+          # Set environment variables untuk proses baru
+          $psi.EnvironmentVariables["PATH"] = $env:PATH
+          
+          $process = [System.Diagnostics.Process]::Start($psi)
+          
+          Write-Host "✅ Script RunAutoLoopBoth.bat berhasil dijalankan di background (PID: $($process.Id))"
           
           # Tunggu sebentar untuk memastikan proses berjalan
           Start-Sleep -Seconds 3
           
-          Write-Host "ℹ️ Script berjalan sebagai background process"
+          if (!$process.HasExited) {
+            Write-Host "ℹ️ Script masih berjalan sebagai background process"
+          } else {
+            Write-Host "⚠️ Script sudah selesai atau error - cek log jika ada"
+          }
 
       - name: ⏳ Keep alive
         run: |
