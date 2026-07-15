@@ -239,43 +239,12 @@ jobs:
           chmod +x "$HOME/Downloads/Tikbot/setup-bot.sh"
           echo "✅ Permission diberikan untuk setup-bot.sh"
           
-          # Buat desktop shortcut untuk melihat log realtime tiktok-bot.py
-          mkdir -p "$HOME/Desktop"
-          cat <<'DESKTOP_EOF' > "$HOME/Desktop/View-Tikbot-Log.desktop"
-          [Desktop Entry]
-          Version=1.0
-          Type=Application
-          Name=View Tikbot Log (Realtime)
-          Comment=Monitor log realtime dari tiktok-bot.py
-          Icon=utilities-terminal
-          Exec=xfce4-terminal --title="Tikbot Log Monitor (Realtime)" --working-directory=/home/runner/Downloads/Tikbot --hold --execute bash -c "echo '=== Monitoring Log Tikbot (Realtime) ==='; echo 'Tekan Ctrl+C untuk keluar'; echo ''; if [ -f tiktok-bot.log ]; then tail -f tiktok-bot.log; else echo 'File log belum ada. Pastikan tiktok-bot.py sudah dijalankan.'; echo 'Menunggu file log muncul...'; tail -f tiktok-bot.log; fi"
-          Terminal=false
-          StartupNotify=false
-          Categories=Utility;
-          DESKTOP_EOF
+          # Jalankan setup-bot.sh
+          cd "$HOME/Downloads/Tikbot"
+          echo "🚀 Menjalankan setup-bot.sh..."
+          bash ./setup-bot.sh
+          echo "✅ Setup bot selesai dijalankan"
           
-          chmod +x "$HOME/Desktop/View-Tikbot-Log.desktop"
-          
-          # Buat shortcut kedua untuk menjalankan setup-bot.sh
-          cat <<'SETUP_EOF' > "$HOME/Desktop/Run-Setup-Bot.desktop"
-          [Desktop Entry]
-          Version=1.0
-          Type=Application
-          Name=Run Setup Bot
-          Comment=Jalankan setup-bot.sh
-          Icon=utilities-terminal
-          Exec=xfce4-terminal --title="Tikbot Setup" --working-directory=/home/runner/Downloads/Tikbot --hold --execute bash -c "./setup-bot.sh; echo ''; echo 'Setup selesai. Tekan Enter untuk menutup atau ketik perintah lain.'; exec bash"
-          Terminal=false
-          StartupNotify=false
-          Categories=Utility;
-          SETUP_EOF
-          
-          chmod +x "$HOME/Desktop/Run-Setup-Bot.desktop"
-          
-          echo "✅ Shortcut desktop telah dibuat:"
-          echo "   - Run-Setup-Bot.desktop: Untuk menjalankan setup-bot.sh"
-          echo "   - View-Tikbot-Log.desktop: Untuk melihat log realtime tiktok-bot.py"
-
       - name: 📦 Instal Aplikasi Tambahan (XDM, FFmpeg, YT-DLP, MEGA)
         run: |
           echo "=== Instal XDM ==="
