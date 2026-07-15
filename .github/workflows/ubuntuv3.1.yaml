@@ -1,4 +1,4 @@
-name: Linux Desktop via CRD
+name: Linux Desktop via CRD Tik
 
 on:
   workflow_dispatch:
