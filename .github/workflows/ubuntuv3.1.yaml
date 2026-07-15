@@ -1,4 +1,4 @@
-name: Linux Desktop via CRD
+name: Linux Desktop via CRD TIKBOT
 
 on:
   workflow_dispatch:
