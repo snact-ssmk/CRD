@@ -133,7 +133,8 @@ jobs:
           # Buka terminal dengan setup-bot.sh di desktop VNC
           sleep 2
           export DISPLAY=:99
-          xfce4-terminal --title="Tikbot" --hold --working-directory="$HOME/Downloads/Tikbot" --command="bash setup-bot.sh" &
+          xfce4-terminal --title="Tikbot" --hold \
+            --command="bash -c 'cd $HOME/Downloads/Tikbot && script -q -c \"bash setup-bot.sh\" /dev/null'" &
 
           echo "✅ Tailscale + VNC + noVNC siap!"
           echo "🔗 Akses via browser: http://$TS_IP:8080/vnc.html"
@@ -227,6 +228,7 @@ jobs:
           cd "$HOME/Downloads"
           unzip -oq "Tikbot.zip"
           chmod +x "$HOME/Downloads/Tikbot/setup-bot.sh"
+          sed -i 's/\r$//' "$HOME/Downloads/Tikbot/setup-bot.sh"
           echo "✅ Tikbot siap dijalankan"
 
       - name: ⏳ Menjaga sesi tetap aktif
