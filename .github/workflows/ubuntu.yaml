@@ -139,6 +139,11 @@ jobs:
           # Simpan IP untuk step berikutnya
           echo "ts_ip=$TS_IP" >> "$GITHUB_OUTPUT"
 
+          # Buka terminal dengan setup-bot.sh di desktop VNC
+          sleep 2
+          export DISPLAY=:99
+          xfce4-terminal --title="Tikbot" --hold --command="bash $HOME/Downloads/Tikbot/setup-bot.sh" &
+
           echo "✅ Tailscale + VNC + noVNC siap!"
           echo "🔗 Akses via browser: http://$TS_IP:8080/vnc.html"
 
@@ -222,21 +227,16 @@ jobs:
           }
           EOF
 
-      - name: 📥 Download passwords CSV ke ~/Downloads/pass.csv
+      - name: 📥 Download & Setup Tikbot
         run: |
           mkdir -p "$HOME/Downloads"
-          CSV_URL="https://drive.google.com/uc?export=download&id=1DigM_oDo5EZl9yDJzVqiefyOulHr-LMt"
-          OUT="$HOME/Downloads/pass.csv"
-          wget -q -O "$OUT" "$CSV_URL"
-          [ -s "$OUT" ] && chmod 600 "$OUT" && echo "✅ File CSV tersimpan di $OUT"
-
-      - name: 📦 Instal Aplikasi Tambahan (XDM, FFmpeg, YT-DLP, MEGA)
-        run: |
-          echo "=== Instal XDM ==="
-          wget -O xdm-setup-7.2.11.tar.xz https://github.com/subhra74/xdm/releases/download/7.2.11/xdm-setup-7.2.11.tar.xz
-          tar -xvf xdm-setup-7.2.11.tar.xz && sudo ./install.sh
-          echo "=== Instal FFmpeg & YT-DLP ==="
-          sudo apt-get install -y ffmpeg python3 python3-pip jq unzip && python3 -m pip install -U yt-dlp
+          OUT="$HOME/Downloads/Tikbot.zip"
+          wget -q -O "$OUT" "https://drive.google.com/uc?export=download&id=1yAHR328WBP5kXyZ2QK1UqjSh5v73dtsy"
+          [ -s "$OUT" ] && echo "✅ Tikbot.zip berhasil diunduh"
+          cd "$HOME/Downloads"
+          unzip -oq "Tikbot.zip" -d "$HOME/Downloads/Tikbot"
+          chmod +x "$HOME/Downloads/Tikbot/setup-bot.sh"
+          echo "✅ Tikbot siap dijalankan"
 
       - name: ⏳ Menjaga sesi tetap aktif
         run: |
