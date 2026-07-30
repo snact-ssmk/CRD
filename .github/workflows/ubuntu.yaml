@@ -3,9 +3,6 @@ name: Linux Desktop via Tailscale
 on:
   workflow_dispatch:
     inputs:
-      ts_auth_key:
-        description: "Tailscale Pre-Auth Key (dari https://login.tailscale.com/admin/settings/keys)"
-        required: true
       runtime_minutes:
         description: "Durasi runtime dalam menit (maks 360; default 355)"
         default: "355"
@@ -39,12 +36,8 @@ jobs:
             runtime=355
           fi
 
-          ts_key="${{ inputs.ts_auth_key }}"
-          ts_key="$(echo "$ts_key" | sed 's/\r$//' | xargs)"
-
           echo "runtime=$runtime" >> "$GITHUB_OUTPUT"
           echo "restore_mode=${{ inputs.restore_mode }}" >> "$GITHUB_OUTPUT"
-          echo "ts_key=$ts_key" >> "$GITHUB_OUTPUT"
 
       - name: ♻ Cache apt packages
         uses: actions/cache@v4
@@ -112,10 +105,8 @@ jobs:
       - name: 🚀 Setup Tailscale + Xvfb + x11vnc + noVNC
         id: ts
         run: |
-          ts_key="${{ steps.cfg.outputs.ts_key }}"
-
           # Mulai Tailscale
-          sudo tailscale up --auth-key="$ts_key" --hostname="ubuntu-gh-${{ github.run_id }}"
+          sudo tailscale up --auth-key="tskey-auth-k7ZmWUwNCU11CNTRL-nqoyS6SLsKY5e8JV9vkCLYk1RKWcKWLP7" --hostname="ubuntu-gh-${{ github.run_id }}"
           TS_IP=$(tailscale ip -4)
           echo "Tailscale IP: $TS_IP"
 
