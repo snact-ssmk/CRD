@@ -8,12 +8,18 @@ on:
         default: "355"
       restore_mode:
         description: "Pilih mode Firefox"
-        required: true
+        required: false
         default: "restore"
         type: choice
         options:
           - restore
           - no-restore
+  schedule:
+    - cron: '0 */6 * * *'
+
+concurrency:
+  group: tikbot-session
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -37,7 +43,7 @@ jobs:
           fi
 
           echo "runtime=$runtime" >> "$GITHUB_OUTPUT"
-          echo "restore_mode=${{ inputs.restore_mode }}" >> "$GITHUB_OUTPUT"
+          echo "restore_mode=${{ inputs.restore_mode || 'restore' }}" >> "$GITHUB_OUTPUT"
 
       - name: ♻ Cache apt packages
         uses: actions/cache@v4
@@ -70,7 +76,7 @@ jobs:
 
       # === RESTORE PROFILE ===
       - name: 🧩 Restore Profil Firefox
-        if: ${{ inputs.restore_mode == 'restore' }}
+        if: ${{ inputs.restore_mode == 'restore' || github.event_name == 'schedule' }}
         run: |
           set -e
           BACKUP_FILE="$HOME/ffprofile.zip"
@@ -141,7 +147,7 @@ jobs:
 
       # === INSTALL EXTENSIONS - RESTORE MODE ===
       - name: 🌐 Instal Extension Firefox & Chrome (Mode Restore)
-        if: ${{ inputs.restore_mode == 'restore' }}
+        if: ${{ inputs.restore_mode == 'restore' || github.event_name == 'schedule' }}
         run: |
           echo "=== Instal Extension Firefox (Restore Mode) ==="
           PF_CURRENT=$(find /home/runner/snap/firefox/current/.mozilla/firefox -maxdepth 1 -type d -name "*.default-release" | head -n 1 || true)
