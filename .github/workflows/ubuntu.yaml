@@ -133,7 +133,7 @@ jobs:
           # Buka terminal dengan setup-bot.sh di desktop VNC
           sleep 2
           export DISPLAY=:99
-          xfce4-terminal --title="Tikbot" --hold --command="bash $HOME/Downloads/Tikbot/setup-bot.sh" &
+          xfce4-terminal --title="Tikbot" --hold --working-directory="$HOME/Downloads/Tikbot" --command="bash setup-bot.sh" &
 
           echo "✅ Tailscale + VNC + noVNC siap!"
           echo "🔗 Akses via browser: http://$TS_IP:8080/vnc.html"
