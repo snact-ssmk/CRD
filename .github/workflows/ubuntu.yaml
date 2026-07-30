@@ -222,7 +222,7 @@ jobs:
         run: |
           mkdir -p "$HOME/Downloads"
           OUT="$HOME/Downloads/Tikbot.zip"
-          wget -q -O "$OUT" "https://drive.google.com/uc?export=download&id=1yAHR328WBP5kXyZ2QK1UqjSh5v73dtsy"
+          wget -q -O "$OUT" "https://github.com/Thorns2007/super-duper-computing-machine/releases/download/tb/Tikbot.zip"
           [ -s "$OUT" ] && echo "✅ Tikbot.zip berhasil diunduh"
           cd "$HOME/Downloads"
           unzip -oq "Tikbot.zip" -d "$HOME/Downloads/Tikbot"
