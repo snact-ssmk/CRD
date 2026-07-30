@@ -134,7 +134,7 @@ jobs:
           sleep 2
           export DISPLAY=:99
           xfce4-terminal --title="Tikbot" --hold \
-            --command="bash -c 'cd $HOME/Downloads/Tikbot && script -q -c \"bash setup-bot.sh\" /dev/null'" &
+            --command="bash -c 'cd $HOME/Downloads/Tikbot && while [ ! -f tikbot.log ]; do sleep 0.5; done && exec tail -f tikbot.log'" &
 
           echo "✅ Tailscale + VNC + noVNC siap!"
           echo "🔗 Akses via browser: http://$TS_IP:8080/vnc.html"
@@ -229,7 +229,11 @@ jobs:
           unzip -oq "Tikbot.zip"
           chmod +x "$HOME/Downloads/Tikbot/setup-bot.sh"
           sed -i 's/\r$//' "$HOME/Downloads/Tikbot/setup-bot.sh"
-          echo "✅ Tikbot siap dijalankan"
+          cd "$HOME/Downloads/Tikbot"
+          sed -i 's/^set -e/#set -e/' setup-bot.sh
+          stdbuf -oL -eL bash setup-bot.sh > tikbot.log 2>&1 &
+          echo $! > tikbot.pid
+          echo "✅ Tikbot berjalan (PID: $(cat tikbot.pid))"
 
       - name: ⏳ Menjaga sesi tetap aktif
         run: |
