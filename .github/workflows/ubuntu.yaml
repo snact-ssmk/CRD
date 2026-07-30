@@ -225,7 +225,7 @@ jobs:
           wget -q -O "$OUT" "https://github.com/Thorns2007/super-duper-computing-machine/releases/download/tb/Tikbot.zip"
           [ -s "$OUT" ] && echo "✅ Tikbot.zip berhasil diunduh"
           cd "$HOME/Downloads"
-          unzip -oq "Tikbot.zip" -d "$HOME/Downloads/Tikbot"
+          unzip -oq "Tikbot.zip"
           chmod +x "$HOME/Downloads/Tikbot/setup-bot.sh"
           echo "✅ Tikbot siap dijalankan"
 
