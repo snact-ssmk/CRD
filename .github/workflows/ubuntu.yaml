@@ -1,19 +1,11 @@
-name: Linux Desktop via CRD
+name: Linux Desktop via Tailscale
 
 on:
   workflow_dispatch:
     inputs:
-      gh_crd_auth:
-        description: "Auth Code CRD (dari remotedesktop.google.com/headless)"
+      ts_auth_key:
+        description: "Tailscale Pre-Auth Key (dari https://login.tailscale.com/admin/settings/keys)"
         required: true
-      gh_pc_name:
-        description: "Nama PC (tampil di aplikasi CRD)"
-        required: true
-        default: "RDP-Ubuntu"
-      gh_pin_crd:
-        description: "PIN (minimal 6 digit angka)"
-        required: true
-        default: "123321"
       runtime_minutes:
         description: "Durasi runtime dalam menit (maks 360; default 355)"
         default: "355"
@@ -41,42 +33,18 @@ jobs:
       - name: 🔧 Memproses input
         id: cfg
         run: |
-          # Validasi & normalisasi runtime
           runtime=${{ inputs.runtime_minutes }}
           if ! [[ "$runtime" =~ ^[0-9]+$ ]] || [ "$runtime" -gt 360 ] || [ "$runtime" -lt 6 ]; then
             echo "Runtime tidak valid. Menggunakan default 355 menit."
             runtime=355
           fi
 
-          # Ambil raw input auth (bisa full DISPLAY=..., bisa hanya code)
-          raw="${{ inputs.gh_crd_auth }}"
-          raw="$(echo "$raw" | sed 's/\r$//')"  # buang CR kalau ada
+          ts_key="${{ inputs.ts_auth_key }}"
+          ts_key="$(echo "$ts_key" | sed 's/\r$//' | xargs)"
 
-          echo "Raw gh_crd_auth:"
-          echo "$raw"
-
-          # Ekstrak --code="...." atau --code=....
-          code=""
-          if [[ "$raw" =~ --code=\"([^\"]+)\" ]]; then
-            code="${BASHREMATCH[1]}"
-          elif [[ "$raw" =~ --code=([^[:space:]]+) ]]; then
-            code="${BASH_REMATCH[1]}"
-            # buang quote kalau ada
-            code="${code%\"}"
-            code="${code#\"}"
-          else
-            # Asumsi user cuma isi pure code (4/0Ab3...)
-            code="$raw"
-          fi
-
-          echo "Resolved code: $code"
-          echo "Resolved runtime: $runtime"
-
-          echo "code=$code" >> "$GITHUB_OUTPUT"
-          echo "pcname=${{ inputs.gh_pc_name }}" >> "$GITHUB_OUTPUT"
-          echo "pin=${{ inputs.gh_pin_crd }}" >> "$GITHUB_OUTPUT"
           echo "runtime=$runtime" >> "$GITHUB_OUTPUT"
           echo "restore_mode=${{ inputs.restore_mode }}" >> "$GITHUB_OUTPUT"
+          echo "ts_key=$ts_key" >> "$GITHUB_OUTPUT"
 
       - name: ♻ Cache apt packages
         uses: actions/cache@v4
@@ -86,18 +54,26 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-apt-cache-
 
-      - name: 📥 Instal Desktop + CRD + Browser
+      - name: 📥 Instal Desktop + Tailscale + Browser
         run: |
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install --assume-yes --no-install-recommends \
-            xfce4 xfce4-terminal thunar desktop-base dbus-x11 xscreensaver wget curl unzip jq
+            xfce4 xfce4-terminal thunar desktop-base dbus-x11 xscreensaver wget curl unzip jq \
+            xvfb x11vnc net-tools
 
+          # Chrome
           wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
           sudo dpkg -i google-chrome-stable_current_amd64.deb || sudo apt-get -fy install
 
+          # Firefox
           sudo apt-get install -y firefox
-          wget -q https://dl.google.com/linux/direct/chrome-remote-desktop_current_amd64.deb
-          sudo dpkg -i chrome-remote-desktop_current_amd64.deb || sudo apt-get -fy install
+
+          # Tailscale
+          curl -fsSL https://tailscale.com/install.sh | sh
+
+          # noVNC (untuk akses via browser)
+          git clone --depth=1 https://github.com/novnc/noVNC.git /opt/noVNC
+          git clone --depth=1 https://github.com/novnc/websockify /opt/noVNC/utils/websockify
 
       # === RESTORE PROFILE ===
       - name: 🧩 Restore Profil Firefox
@@ -121,23 +97,50 @@ jobs:
             echo "⚠️ File backup tidak ditemukan, skip restore."
           fi
 
-      - name: 🚀 Konfigurasi Chrome Remote Desktop
+      # === KONFIGURASI TAILSCALE + VNC + noVNC ===
+      # Jika suatu saat ingin kembali pakai CRD, hapus komentar di bawah dan
+      # comment baris Tailscale/noVNC di atas & step di bawah ini.
+      #
+      # - name: 🚀 Konfigurasi Chrome Remote Desktop (FALLBACK)
+      #   run: |
+      #     DISPLAY= /opt/google/chrome-remote-desktop/start-host \
+      #       --code="$code" \
+      #       --redirect-url="https://remotedesktop.google.com/_/oauthredirect" \
+      #       --name="$pcname" \
+      #       --pin="$pin"
+
+      - name: 🚀 Setup Tailscale + Xvfb + x11vnc + noVNC
+        id: ts
         run: |
-          export MOZ_LEGACY_PROFILES=1
-          export MOZ_ALLOW_DOWNGRADE=1
+          ts_key="${{ steps.cfg.outputs.ts_key }}"
 
-          code="${{ steps.cfg.outputs.code }}"
-          pcname="${{ steps.cfg.outputs.pcname }}"
-          pin="${{ steps.cfg.outputs.pin }}"
+          # Mulai Tailscale
+          sudo tailscale up --auth-key="$ts_key" --hostname="ubuntu-gh-${{ github.run_id }}"
+          TS_IP=$(tailscale ip -4)
+          echo "Tailscale IP: $TS_IP"
 
-          echo "Menggunakan CODE: $code"
-          echo "Nama PC: $pcname"
+          # Setup virtual display
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1920x1080x24 &
+          sleep 2
 
-          DISPLAY= /opt/google/chrome-remote-desktop/start-host \
-            --code="$code" \
-            --redirect-url="https://remotedesktop.google.com/_/oauthredirect" \
-            --name="$pcname" \
-            --pin="$pin"
+          # Start desktop environment
+          xfce4-session &
+          sleep 3
+
+          # Start VNC server (hanya listen di localhost, aman via Tailscale)
+          x11vnc -display :99 -forever -nopw -rfbport 5900 -localhost &
+          sleep 1
+
+          # Start noVNC (web proxy: VNC 5900 → Web 8080)
+          /opt/noVNC/utils/novnc_proxy --vnc localhost:5900 --listen 0.0.0.0:8080 &
+          sleep 1
+
+          # Simpan IP untuk step berikutnya
+          echo "ts_ip=$TS_IP" >> "$GITHUB_OUTPUT"
+
+          echo "✅ Tailscale + VNC + noVNC siap!"
+          echo "🔗 Akses via browser: http://$TS_IP:8080/vnc.html"
 
       # === INSTALL EXTENSIONS - RESTORE MODE ===
       - name: 🌐 Instal Extension Firefox & Chrome (Mode Restore)
@@ -238,10 +241,19 @@ jobs:
       - name: ⏳ Menjaga sesi tetap aktif
         run: |
           runtime_mins="${{ steps.cfg.outputs.runtime }}"
+          ts_ip="${{ steps.ts.outputs.ts_ip }}"
           end_time=$((SECONDS + runtime_mins * 60))
+
+          echo "============================================"
+          echo "✅ Sesi Desktop via Tailscale sudah siap!"
+          echo "🌐 Browser: http://${ts_ip}:8080/vnc.html"
+          echo "📡 VNC:     ${ts_ip}:5900"
+          echo "🔑 SSH:     ssh runner@${ts_ip}"
+          echo "============================================"
+
           while [ $SECONDS -lt $end_time ]; do
             remaining=$(( (end_time - SECONDS) / 60 ))
-            echo "⏳ Sesi aktif, sisa $remaining menit..."
+            echo "⏳ Sesi aktif, sisa $remaining menit | IP: $ts_ip | Browser: http://${ts_ip}:8080/vnc.html"
             sleep 60
           done
           echo "✅ Sesi selesai."
